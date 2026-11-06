@@ -6,7 +6,7 @@ import sys
 import requests
 
 
-USER_AGENT = "Arachnida/1.0 (42 school project)"
+USER_AGENT = "Arachnida/1.0 (School project)"
 DEFAULT_TIMEOUT = 10 	# seconds
 
 
@@ -27,7 +27,8 @@ def fetch(url: str, timeout: int = DEFAULT_TIMEOUT) -> str | None:
 		print(f"[fetcher] connection error: {url}", file=sys.stderr)
 		return None
 	except requests.exceptions.HTTPError as e:
-		print(f"[fetcher] HTTP {e.response.status_code}: {url}", file=sys.stderr)
+		status_code = e.response.status_code if e.response is not None else "unknown"
+		print(f"[fetcher] HTTP {status_code}: {url}", file=sys.stderr)
 		return None
 	except requests.exceptions.RequestException as e:
 		print(f"[fetcher] error: {url} - {e}", file=sys.stderr)

@@ -3,16 +3,15 @@ Spider / orchestration
 """
 
 import sys
+from pathlib import Path
 
 from spider.cli import parse_args
 from spider.fetcher import fetch
 from spider.parser import extract_image_urls
+from spider.downloader import download_image
 
 
 def main(argv: list[str] | None = None) -> int:
-	"""
-	Entry point. Returns exit code (0 = success, non-zero = failure).
-	"""
 	args = parse_args(argv if argv is not None else sys.argv[1:])
 
 	print(f"[spider] fetching: {args.url}")
@@ -22,10 +21,21 @@ def main(argv: list[str] | None = None) -> int:
 		return 1
 
 	image_urls = extract_image_urls(html, args.url)
+	print(f"[spider] found {len(image_urls)} image candidate(s) on {args.url}")
+	if not image_urls:
+		return 0
 
-	print(f"[spider] found {len(image_urls)} image(s) on {args.url}")
+	dest_dir = Path(args.p)
+	seen_hashes: set[str] = set()
+	saved_count = 0
+
 	for url in sorted(image_urls):
-		print(f" {url}")
+		saved = download_image(url, dest_dir, seen_hashes)
+		if saved:
+				saved_count += 1
+				print(f"[spider] saved: {saved}")
+
+	print(f"[spider] All done! {saved_count}/{len(image_urls)} images saved to {dest_dir}/", file=sys.stderr)
 
 	return 0
 
