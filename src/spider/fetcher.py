@@ -1,5 +1,10 @@
+"""
+Spider / Fetcher module: 
+"""
+
 import sys
 import requests
+
 
 USER_AGENT = "Arachnida/1.0 (42 school project)"
 DEFAULT_TIMEOUT = 10 	# seconds
@@ -7,8 +12,8 @@ DEFAULT_TIMEOUT = 10 	# seconds
 
 def fetch(url: str, timeout: int = DEFAULT_TIMEOUT) -> str | None:
 	"""
-	Fetches the content of a URL as text
-	Returns the HTML string on success, None on any error
+	Fetches the content of a URL as text.
+	Returns the HTML string on success, None on any error.
 	"""
 	headers = {"User-Agent": USER_AGENT}
 

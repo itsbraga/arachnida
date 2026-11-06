@@ -1,65 +1,36 @@
-#!/usr/bin/env python3
+"""
+Spider / CLI argument parsing
+"""
 
 import argparse
 import sys
 
 from spider.fetcher import fetch
+from spider.parser import extract_image_urls
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+	"""
+	Parses command-line arguments
 
+	Expecting: ./spider [-rlp] URL
+
+	• Option -r : recursively downloads the images in a URL received as a parameter.
+	• Option -r -l [N] : indicates the maximum depth level of the recursive download.
+	  If not indicated, it will be 5.
+	• Option -p [PATH] : indicates the path where the downloaded files will be saved.
+	  If not specified, ./data/ will be used.
+	"""
 	parser = argparse.ArgumentParser(
 		prog="spider",
-		description="Downloads images from a website recursively.",
-	)
-
-	parser.add_argument(
-		"-r",
-		action="store_true",
-		help="recursively download images from the given URL",
-	)
-	parser.add_argument(
-		"-l",
-		type=int,
-		default=5,
-		metavar="N",
-		help="maximum depth of recursion (default: 5); requires -r",
-	)
-	parser.add_argument(
-		"-p",
-		type=str,
-		default="./data/",
-		metavar="PATH",
-		help="destination directory for downloaded images (default: ./data/)",
-	)
-	parser.add_argument(
-		"url",
-		type=str,
-		help="starting URL to crawl",
-	)
+		description="Downloads images from a website recursively.")
+	parser.add_argument("-r", action="store_true",
+						help="recursively download images from the given URL")
+	parser.add_argument("-l", type=int, default=5, metavar="DEPTH",
+						help="maximum depth of recursion (default: 5); requires -r")
+	parser.add_argument("-p", type=str, default="./data/", metavar="PATH",
+						help="destination directory for downloaded images (default: ./data/)")
+	parser.add_argument("url", type=str,
+						help="starting URL to crawl")
 
 	return parser.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-
-	args = parse_args(argv if argv is not None else sys.argv[1:])
-
-	print(f"[spider] fetching: {args.url}")
-
-	html = fetch(args.url)
-	if html is None:
-		print("[spider] failed to fetch URL", file=sys.stderr)
-		return 1
-
-	print(f"[spider] got {len(html)} characters of HTML")
-	print("[spider] first 300 chars:")
-	print("-" * 60)
-	print(html[:300])
-	print("-" * 60)
-
-	return 0
-
-
-if __name__ == "__main__":
-	sys.exit(main())
