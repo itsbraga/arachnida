@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""
-CLI argument parsing
-"""
 
 import argparse
 import sys
+
+from spider.fetcher import fetch
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
 
@@ -45,14 +45,21 @@ def main(argv: list[str] | None = None) -> int:
 
 	args = parse_args(argv if argv is not None else sys.argv[1:])
 
-	print(f"URL		: {args.url}")
-	print(f"Recursive	: {args.r}")
-	print(f"Max depth	: {args.l}")
-	print(f"Destination	: {args.p}")
+	print(f"[spider] fetching: {args.url}")
+
+	html = fetch(args.url)
+	if html is None:
+		print("[spider] failed to fetch URL", file=sys.stderr)
+		return 1
+
+	print(f"[spider] got {len(html)} characters of HTML")
+	print("[spider] first 300 chars:")
+	print("-" * 60)
+	print(html[:300])
+	print("-" * 60)
 
 	return 0
 
 
 if __name__ == "__main__":
-
 	sys.exit(main())
