@@ -3,7 +3,15 @@
 #------------------------------------
 
 import argparse
+from urllib.parse import urlparse
 
+
+DEFAULT_DEPTH = 5
+
+
+#--------------
+#	PUBLIC
+#--------------
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
 	"""
@@ -22,11 +30,48 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 		description="Downloads images from a website recursively.")
 	parser.add_argument("-r", action="store_true",
 						help="recursively download images from the given URL")
-	parser.add_argument("-l", type=int, default=5, metavar="DEPTH",
+	parser.add_argument("-l", type=_depth, default=None, metavar="DEPTH",
 						help="maximum depth of recursion (default: 5); requires -r")
 	parser.add_argument("-p", type=str, default="./data/", metavar="PATH",
 						help="destination directory for downloaded images (default: ./data/)")
-	parser.add_argument("url", type=str,
+	parser.add_argument("URL", type=_http_url,
 						help="starting URL to crawl")
 
-	return parser.parse_args(argv)
+	args = parser.parse_args(argv)
+
+	if args.l is not None and not args.r:
+		parser.error("-l requires -r")
+	if args.l is None:
+		args.l = DEFAULT_DEPTH
+
+	return args
+
+
+#--------------
+#	PRIVATE
+#--------------
+
+def _depth(value: str) -> int:
+	"""
+	Converts the -l value to a non-negative integer.
+	"""
+	try:
+		depth = int(value)
+	except ValueError:
+		raise argparse.ArgumentTypeError(f"invalid depth: '{value}'")
+
+	if depth < 0:
+		raise argparse.ArgumentTypeError(f"depth must be >= 0, got {depth}")
+
+	return depth
+
+def _http_url(value: str) -> str:
+	"""
+	Accepts only absolute http(s) URLs.
+	"""
+	parsed = urlparse(value)
+	if parsed.scheme not in ("http", "https") or not parsed.netloc:
+		raise argparse.ArgumentTypeError(
+			f"invalid URL: '{value}' (expected http:// or https://)")
+
+	return value

@@ -2,7 +2,6 @@
 #	Spider / Fetcher module
 #------------------------------
 
-import sys
 import requests
 from common.colors import warn, error
 

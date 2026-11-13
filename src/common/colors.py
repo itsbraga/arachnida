@@ -53,4 +53,4 @@ def warn(tag: str, msg: str) -> None:
 	print(f"{BOLD}{P_ORANGE}[{tag}]{NC} {msg}", file=sys.stderr)
 
 def error(tag: str, msg: str) -> None:
-	print(f"{BOLD}{RED}[{tag}]{NC} {msg}", file=sys.stderr)
+	print(f"{BOLD}{RED}[{tag}] error: {msg}{NC}", file=sys.stderr)

@@ -3,7 +3,6 @@
 #---------------------------------------------------------------------------------
 
 import hashlib
-import sys
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
@@ -85,7 +84,6 @@ def download_image(url:str, dest_dir: Path, seen_hashes: set[str]) -> Path | Non
 	seen_hashes.add(content_hash)
 
 	# 5. Build a safe, collision-free filename
-	dest_dir.mkdir(parents=True, exist_ok=True)
 	filename = _build_filename(url, content_hash, real_format)
 	dest_path = dest_dir / filename
 
