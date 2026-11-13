@@ -1,12 +1,8 @@
-"""
-Spider / CLI argument parsing
-"""
+#------------------------------------
+#	Spider / CLI argument parsing
+#------------------------------------
 
 import argparse
-import sys
-
-from spider.fetcher import fetch
-from spider.parser import extract_image_urls
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
