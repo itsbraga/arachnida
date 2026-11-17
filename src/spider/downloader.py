@@ -1,11 +1,12 @@
 #---------------------------------------------------------------------------------
-#	Spider / Image downloading module: Upload an image, review it, and save it.
+#	Spider / Image downloading module: Download an image, review it, and save it.
 #---------------------------------------------------------------------------------
 
-import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
+import hashlib
+import urllib3
 
 from spider.fetcher import USER_AGENT, DEFAULT_TIMEOUT
 from common.colors import warn, error
@@ -36,7 +37,7 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024		# 20 MB safety cap
 #	PUBLIC
 #--------------
 
-def download_image(url:str, dest_dir: Path, seen_hashes: set[str]) -> Path | None:
+def download_image(url: str, dest_dir: Path, seen_hashes: set[str]) -> Path | None:
 	"""
 	Downloads one image, validates its magic bytes, deduplicates by
 	content hash, and saves it to dest_dir.
@@ -44,28 +45,21 @@ def download_image(url:str, dest_dir: Path, seen_hashes: set[str]) -> Path | Non
 	"""
 	headers = {"User-Agent": USER_AGENT}
 
-	# 1. Fetch the raw bytes
+	# 1. Fetch the raw bytes, with a size cap to avoid memory bombs
 	try:
-		response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT,
-							stream=True)
-		response.raise_for_status()
+		with requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT, stream=True) as response:
+			response.raise_for_status()
+			content = response.raw.read(MAX_IMAGE_BYTES + 1, decode_content=True)
 	except requests.exceptions.RequestException as e:
 		error("downloader", f"fetch failed: {url} - {e}")
 		return None
-
-	# 2. Read with a size cap to avoid memory bombs
-	try:
-		content = response.raw.read(MAX_IMAGE_BYTES + 1, decode_content=True)
-	except Exception as e:
+	except (urllib3.exceptions.HTTPError, OSError) as e:
 		error("downloader", f"read failed: {url} - {e}")
 		return None
-	finally:
-		response.close()
 
 	if len(content) > MAX_IMAGE_BYTES:
 		warn("downloader", f"file too large (>{MAX_IMAGE_BYTES} bytes): {url}")
 		return None
-
 	if not content:
 		warn("downloader", f"empty response: {url}")
 		return None

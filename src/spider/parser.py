@@ -2,8 +2,8 @@
 #	Spider / HTML parsing module: Extracts image URLs from an HTML page.
 #--------------------------------------------------------------------------
 
-from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp"}
@@ -15,7 +15,7 @@ IGNORED_PREFIXES = ("data:", "javascript:", "mailto:", "tel:", "#")
 #	PUBLIC
 #--------------
 
-def extract_image_urls(html: str, base_url: str) -> set[str]:
+def extract_image_urls(html: bytes, base_url: str) -> set[str]:
 	"""
 	Parses the HTML and returns the set of absolute image URLS found.
 	"""
@@ -33,7 +33,7 @@ def extract_image_urls(html: str, base_url: str) -> set[str]:
 	return urls
 
 
-def extract_page_links(html: str, base_url: str) -> set[str]:
+def extract_page_links(html: bytes, base_url: str) -> set[str]:
 	"""
 	Parses the HTML and returns the set of absolute page URLs (<a href>)
 	that look like navigable pages (not images, not downloads).

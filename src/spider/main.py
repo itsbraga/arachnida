@@ -18,11 +18,13 @@ def main(argv: list[str] | None = None) -> int:
 	if dest_dir is None:
 		return 1
 
-	print(f"{BOLD}{P_PURPLE}[spider] START --- args: recursive={args.r}, max_depth={args.l}, "
+	print(f"{BOLD}{P_PURPLE}START  ---  args: recursive={args.r}, max_depth={args.l}, "
 	      f"dest={dest_dir}{NC}")
+	print("******\n")
 
 	saved = crawl(start_url=args.URL, dest_dir=dest_dir, recursive=args.r, max_depth=args.l)
-	print(f"{BOLD}{P_GREEN}[spider] DONE --- {saved} image(s) saved{NC}")
+	print("\n*****")
+	print(f"{BOLD}{P_GREEN}DONE  ---  {saved} image(s) saved{NC}")
 
 	return 0
 
