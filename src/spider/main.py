@@ -18,19 +18,23 @@ def main(argv: list[str] | None = None) -> int:
 	if dest_dir is None:
 		return 1
 
-	print(f"{BOLD}{P_PURPLE}START  ---  args: recursive={args.r}, max_depth={args.l}, "
-	      f"dest={dest_dir}{NC}")
-	print("******\n")
+	try:
+		print(f"{BOLD}{P_PURPLE}START  ---  args: recursive={args.r}, max_depth={args.l}, "
+			f"dest={dest_dir}{NC}")
+		print("******\n")
 
-	saved = crawl(start_url=args.URL, dest_dir=dest_dir, recursive=args.r, max_depth=args.l)
-	print("\n*****")
-	print(f"{BOLD}{P_GREEN}DONE  ---  {saved} image(s) saved{NC}")
+		stats = crawl(start_url=args.URL, dest_dir=dest_dir, recursive=args.r, max_depth=args.l)
+		print("\n*****")
+		print(f"{BOLD}{P_GREEN}DONE  ---  {stats.saved} image(s) saved, {stats.duplicates} "
+		      f"duplicates skipped{NC}")
+	except BrokenPipeError:
+		_silence_stdout()
+		return 141
 
-	return 0
+	if stats.interrupted:
+		return 130
 
-
-if __name__ == "__main__":
-	sys.exit(main())
+	return 0 if stats.pages > 0 else 1
 
 
 #--------------
@@ -55,3 +59,13 @@ def _prepare_dest_dir(raw_path: str) -> Path | None:
 		return None
 
 	return dest_dir
+
+
+def _silence_stdout() -> None:
+	"""
+	The reader of our output is gone (e.g. `| head`).
+	Point stdout to /dev/null so the final flush at exit does not
+	raise a second BrokenPipeError.
+	"""
+	devnull = os.open(os.devnull, os.O_WRONLY)
+	os.dup2(devnull, sys.stdout.fileno())

@@ -4,16 +4,14 @@
 
 from pathlib import Path
 from urllib.parse import urlparse
-import requests
 import hashlib
-import urllib3
 
-from spider.fetcher import USER_AGENT, DEFAULT_TIMEOUT
+from spider.fetcher import http_get
 from common.colors import warn, error
 
 
 """
-Each file format begins with a distinctive sequence of byte (the “magic number”)
+Each file format begins with a distinctive sequence of byte (the "magic number")
 that uniquely identifies it. This is reliable, unlike the file extension.
 
 	Format	|	Magic bytes (hexadecimal)
@@ -37,56 +35,48 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024		# 20 MB safety cap
 #	PUBLIC
 #--------------
 
-def download_image(url: str, dest_dir: Path, seen_hashes: set[str]) -> Path | None:
+def fetch_image(url: str) -> tuple[bytes, str] | None:
 	"""
-	Downloads one image, validates its magic bytes, deduplicates by
-	content hash, and saves it to dest_dir.
-	Returns the saved Path on success, None on any rejection/error.
+	Downloads one image and checks its magic bytes.
+	Returns (content, fmt) on success, None on any error or rejection.
 	"""
-	headers = {"User-Agent": USER_AGENT}
-
-	# 1. Fetch the raw bytes, with a size cap to avoid memory bombs
-	try:
-		with requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT, stream=True) as response:
-			response.raise_for_status()
-			content = response.raw.read(MAX_IMAGE_BYTES + 1, decode_content=True)
-	except requests.exceptions.RequestException as e:
-		error("downloader", f"fetch failed: {url} - {e}")
-		return None
-	except (urllib3.exceptions.HTTPError, OSError) as e:
-		error("downloader", f"read failed: {url} - {e}")
+	result = http_get(url, MAX_IMAGE_BYTES)
+	if result is None:
 		return None
 
-	if len(content) > MAX_IMAGE_BYTES:
-		warn("downloader", f"file too large (>{MAX_IMAGE_BYTES} bytes): {url}")
-		return None
+	content, _ = result
 	if not content:
 		warn("downloader", f"empty response: {url}")
 		return None
 
-	# 3. Validate real format via magic bytes
-	real_format = _detect_format(content)
-	if real_format is None:
+	fmt = _detect_format(content)
+	if fmt is None:
 		warn("downloader", f"not a recognised image: {url}")
 		return None
 
-	# 4. Deduplicate by content hash
+	return content, fmt
+
+
+def save_image(content: bytes, fmt: str, url: str, dest_dir: Path) -> Path | None:
+	"""
+	Writes the image atomically under a collision-free name.
+	Returns the saved Path, or None if the write failed.
+	"""
 	content_hash = hashlib.sha256(content).hexdigest()
-	if content_hash in seen_hashes:
-		warn("downloader", f"duplicate content skipped: {url}")
-		return None
-	seen_hashes.add(content_hash)
 
-	# 5. Build a safe, collision-free filename
-	filename = _build_filename(url, content_hash, real_format)
-	dest_path = dest_dir / filename
+	dest_path = dest_dir / _build_filename(url, content_hash, fmt)
+	tmp_path = dest_path.with_name(dest_path.name + ".part")
 
-	# 6. Write
 	try:
-		dest_path.write_bytes(content)
+		tmp_path.write_bytes(content)
+		tmp_path.replace(dest_path)
 	except OSError as e:
+		tmp_path.unlink(missing_ok=True)
 		error("downloader", f"write failed: {dest_path} - {e}")
 		return None
+	except KeyboardInterrupt:
+		tmp_path.unlink(missing_ok=True)
+		raise
 
 	return dest_path
 

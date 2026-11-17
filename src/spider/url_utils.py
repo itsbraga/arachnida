@@ -16,7 +16,7 @@ def normalize(url: str) -> str:
 
 	return urlunparse((
 		parsed.scheme.lower(), parsed.netloc.lower(),
-		parsed.path, parsed.params, parsed.query, ""
+		parsed.path or "/", parsed.params, parsed.query, ""
 	))
 
 

@@ -1,12 +1,12 @@
-#--------------------------------------------------------------------------
-#	Spider / HTML parsing module: Extracts image URLs from an HTML page.
-#--------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#	Spider / HTML parsing module: extracts image and page URLS from a page.
+#-----------------------------------------------------------------------------
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp"}
+ALLOWED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".bmp")
 SAFE_SCHEMES = {"http", "https"}
 IGNORED_PREFIXES = ("data:", "javascript:", "mailto:", "tel:", "#")
 
@@ -15,41 +15,45 @@ IGNORED_PREFIXES = ("data:", "javascript:", "mailto:", "tel:", "#")
 #	PUBLIC
 #--------------
 
-def extract_image_urls(html: bytes, base_url: str) -> set[str]:
+def extract_urls(html: bytes, base_url: str) -> tuple[set[str], set[str]]:
 	"""
-	Parses the HTML and returns the set of absolute image URLS found.
+	Parses the HTML once.
+	Returns (image_urls, page_urls), all absolute http(s) URLs.
 	"""
 	soup = BeautifulSoup(html, "lxml")
-	urls: set[str] = set()
+	images: set[str] = set()
+	pages: set[str] = set()
+
+	# <base href="..."> tags changes the base used to resolve relative links
+	base_tag = soup.find("base", href=True)
+	if base_tag is not None:
+		base_url = _safe_resolve(base_tag.get("href"), base_url) or base_url
 
 	# <img src="..."> tags
 	for img in soup.find_all("img"):
-		_try_add_image(img.get("src"), base_url, urls)
+		url = _safe_resolve(img.get("src"), base_url)
+		if url is not None and _is_image(url):
+			images.add(url)
 
 	# <a href="..."> tags pointing directly to image files
 	for link in soup.find_all("a"):
-		_try_add_image(link.get("href"), base_url, urls)
+		url = _safe_resolve(link.get("href"), base_url)
+		if url is not None:
+			(images if _is_image(url) else pages).add(url)
 
-	return urls
-
-
-def extract_page_links(html: bytes, base_url: str) -> set[str]:
-	"""
-	Parses the HTML and returns the set of absolute page URLs (<a href>)
-	that look like navigable pages (not images, not downloads).
-	"""
-	soup = BeautifulSoup(html, "lxml")
-	urls: set[str] = set()
-
-	for link in soup.find_all("a"):
-		_try_add_page(link.get("href"), base_url, urls)
-
-	return urls
+	return images, pages
 
 
 #--------------
 #	PRIVATE
 #--------------
+
+def _is_image(url: str) -> bool:
+	"""
+	True if the URL path ends with an allowed image extension.
+	"""
+	return urlparse(url).path.lower().endswith(ALLOWED_EXTENSIONS)
+
 
 def _safe_resolve(raw: object, base_url: str) -> str | None:
 	"""
@@ -74,31 +78,3 @@ def _safe_resolve(raw: object, base_url: str) -> str | None:
 		return None
 
 	return absolute
-
-
-def _try_add_image(raw: object, base_url: str, urls: set[str]) -> None:
-	"""
-	Safely adds raw to urls if it resolves to an image URL.
-	"""
-	absolute = _safe_resolve(raw, base_url)
-	if absolute is None:
-		return
-
-	path = urlparse(absolute).path.lower()
-	if any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
-		urls.add(absolute)
-
-
-def _try_add_page(raw: object, base_url: str, urls: set[str]) -> None:
-	"""
-	Safely adds raw to urls if it resolves to a navigable page URL.
-	"""
-	absolute = _safe_resolve(raw, base_url)
-	if absolute is None:
-		return
-
-	path = urlparse(absolute).path.lower()
-	# Exclude anything that looks like an image or a non-page asset
-	if any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
-		return
-	urls.add(absolute)
