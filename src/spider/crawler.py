@@ -93,7 +93,7 @@ class _Crawler:
 		if final_url != url:
 			info("crawler", f"redirected: {url} -> {final_url}")
 			if depth == 0:
-				self.root = final_url	# the start URL itself moved: the scope follows it
+				self.root = final_url		# the start URL itself moved: the scope follows it
 			elif not is_in_scope(final_url, self.root):
 				warn("crawler", f"redirected out of scope, skipped: {final_url}")
 				return None
