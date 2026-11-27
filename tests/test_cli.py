@@ -1,6 +1,6 @@
-#---------------------------------
+#----------------------------------
 #	Tests / CLI argument parsing
-#---------------------------------
+#----------------------------------
 
 import pytest
 from spider.cli import parse_args, DEFAULT_DEPTH

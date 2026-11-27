@@ -1,4 +1,4 @@
-#------------------------------------------------------------------
+#-------------------------------------------------------------------
 #	Tests / BFS crawler on a fake website (no real network)
 #
 #	Site map:
@@ -6,7 +6,7 @@
 #		/p1		-> img a.jpg, b.jpg		links: p3, /
 #		/p2		-> img c.jpg (same bytes as b.jpg)		links: p1
 #		/p3		-> img d.jpg
-#------------------------------------------------------------------
+#-------------------------------------------------------------------
 
 from dataclasses import dataclass, field
 from pathlib import Path

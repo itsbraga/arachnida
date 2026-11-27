@@ -2,8 +2,9 @@
 #	Tests / Security invariants of the codebase
 #
 #	CVE-2026-126190, CVE-2026-126191 and CVE-2026-126193 (soupsieve)
-#	are only reachable through CSS selectors. The project stays on
-#	soupsieve 2.10 (Python 3.10), so selectors must never be used.
+#	were only reachable through CSS selectors. They are fixed by the
+#	upgrade to soupsieve 4.1.3; this test is defence in depth: the
+#	code must keep using find() / find_all() only.
 #----------------------------------------------------------------------
 
 from pathlib import Path
