@@ -2,7 +2,7 @@
 #	Tests / URL manipulation utilities
 #------------------------------------------
 
-from spider.url_utils import normalize, is_in_scope
+from spider.url_utils import normalize, is_in_scope, origin
 
 
 def test_normalize_lowercases_scheme_and_host():
@@ -44,3 +44,11 @@ def test_out_of_scope_other_scheme():
 
 def test_out_of_scope_other_port():
 	assert not is_in_scope("https://example.com:8443/", "https://example.com/")
+
+
+def test_origin_keeps_scheme_host_and_port():
+	assert origin("HTTPS://Site.TEST:8443/a/b?q=1#f") == "https://site.test:8443"
+
+
+def test_origin_without_path():
+	assert origin("https://site.test") == "https://site.test"

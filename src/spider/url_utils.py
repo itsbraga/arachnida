@@ -20,15 +20,19 @@ def normalize(url: str) -> str:
 	))
 
 
+def origin(url: str) -> str:
+	"""
+	"https://Site.com:8443/a/b?q" -> "https://site.com:8443"
+	The unit that the crawl scope, robots.txt and Crawl-delay apply to.
+	"""
+	parsed = urlparse(url)
+
+	return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+
+
 def is_in_scope(url: str, root_url: str) -> bool:
 	"""
 	True if url shares scheme + host + port with root_url
 	Same-origin policy -> prevents the crawler from leaving the site
 	"""
-	a = urlparse(url)
-	b = urlparse(root_url)
-
-	return (
-		a.scheme.lower() == b.scheme.lower()
-		and a.netloc.lower() == b.netloc.lower()
-	)
+	return origin(url) == origin(root_url)

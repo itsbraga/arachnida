@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
 		stats = crawl(start_url=args.URL, dest_dir=dest_dir, recursive=args.r, max_depth=args.l)
 		print("\n*****")
 		print(f"{BOLD}{P_GREEN}DONE  ---  {stats.saved} image(s) saved, {stats.duplicates} "
-		      f"duplicate(s) skipped{NC}")
+		      f"duplicate(s) skipped, {stats.blocked} blocked by robots.txt{NC}")
 	except BrokenPipeError:
 		_silence_stdout()
 		return 141

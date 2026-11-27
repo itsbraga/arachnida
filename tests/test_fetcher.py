@@ -39,6 +39,7 @@ class FakeResponse:
 @pytest.fixture(autouse=True)
 def no_delay(monkeypatch):
 	monkeypatch.setattr(fetcher, "REQUEST_DELAY", 0)
+	monkeypatch.setattr(fetcher, "_delays", {})		# no Crawl-delay leaks between tests
 
 
 def test_fetch_returns_html_and_final_url(monkeypatch):
@@ -80,6 +81,38 @@ def test_http_error_returns_none(monkeypatch):
 def test_network_failures_return_none(monkeypatch, exc):
 	_serve(monkeypatch, exc=exc)
 	assert fetcher.fetch("https://site.test/") is None
+
+
+#--------------------
+#	robots.txt
+#--------------------
+
+@pytest.mark.parametrize("status", [200, 404, 503])
+def test_fetch_robots_returns_any_status(monkeypatch, status):
+	_serve(monkeypatch, FakeResponse(b"User-agent: *", content_type="text/plain", status=status))
+	assert fetcher.fetch_robots("https://site.test/robots.txt") == (status, b"User-agent: *")
+
+
+def test_fetch_robots_truncates_instead_of_rejecting(monkeypatch):
+	_serve(monkeypatch, FakeResponse(b"x" * (fetcher.MAX_ROBOTS_BYTES + 10)))
+	result = fetcher.fetch_robots("https://site.test/robots.txt")
+	assert result is not None and len(result[1]) == fetcher.MAX_ROBOTS_BYTES
+
+
+def test_fetch_robots_unreachable_returns_none(monkeypatch):
+	_serve(monkeypatch, exc=requests.exceptions.ConnectionError())
+	assert fetcher.fetch_robots("https://site.test/robots.txt") is None
+
+
+def test_crawl_delay_is_capped():
+	fetcher.set_crawl_delay("https://slow.test", 3600)
+	assert fetcher._delays["https://slow.test"] == fetcher.MAX_CRAWL_DELAY
+
+
+def test_crawl_delay_never_below_default(monkeypatch):
+	monkeypatch.setattr(fetcher, "REQUEST_DELAY", 0.5)
+	fetcher.set_crawl_delay("https://fast.test", 0)
+	assert fetcher._delays["https://fast.test"] == 0.5
 
 
 #--------------

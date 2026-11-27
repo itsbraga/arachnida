@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 
 import spider.crawler as crawler
+import spider.fetcher as fetcher
+import spider.robots as robots
 from spider.crawler import crawl
 
 
@@ -37,11 +39,13 @@ IMAGES: dict[str, bytes] = {
 @dataclass
 class FakeSite:
 	"""
-	What the fake network saw, in order, and the redirects it applies.
+	What the fake network saw, in order, and the redirects it applies
+	and the robots.txt it serves (absent by default: everything allowed).
 	"""
 	pages: list[str] = field(default_factory=list)
 	images: list[str] = field(default_factory=list)
 	redirects: dict[str, str] = field(default_factory=dict)
+	robots: dict[str, tuple[int, bytes]] = field(default_factory=dict)
 
 
 @pytest.fixture
@@ -60,9 +64,15 @@ def site(monkeypatch: pytest.MonkeyPatch) -> FakeSite:
 	def fake_fetch_image(url: str) -> tuple[bytes, str] | None:
 		fake.images.append(url)
 		return IMAGES[url], "jpg"
+	
+	def fake_fetch_robots(url: str) -> tuple[int, bytes] | None:
+		return fake.robots.get(url, (404, b""))
 
 	monkeypatch.setattr(crawler, "fetch", fake_fetch)
 	monkeypatch.setattr(crawler, "fetch_image", fake_fetch_image)
+	monkeypatch.setattr(robots, "fetch_robots", fake_fetch_robots)
+	monkeypatch.setattr(fetcher, "_delays", {})
+
 	return fake
 
 
@@ -75,8 +85,8 @@ def test_without_recursion_only_start_page(site: FakeSite, tmp_path: Path):
 def test_depth_one_visits_direct_links_only(site: FakeSite, tmp_path: Path):
 	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=1)
 	assert site.pages == [ROOT, ROOT + "p1", ROOT + "p2"]
-	assert stats.saved == 2					# a, b (c has the same bytes as b)
-	assert stats.duplicates == 2			# a.jpg again on p1, c.jpg by hash
+	assert stats.saved == 2						# a, b (c has the same bytes as b)
+	assert stats.duplicates == 2				# a.jpg again on p1, c.jpg by hash
 	assert len(list(tmp_path.iterdir())) == 2
 
 
@@ -122,3 +132,36 @@ def test_ctrl_c_stops_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 	monkeypatch.setattr(crawler, "fetch_image", interrupted)
 	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=1)
 	assert stats.interrupted
+
+
+#--------------------
+#	robots.txt
+#--------------------
+
+def test_disallowed_page_is_never_fetched(site: FakeSite, tmp_path: Path):
+	site.robots[ROOT + "robots.txt"] = (200, b"User-agent: *\nDisallow: /p2")
+	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=1)
+	assert site.pages == [ROOT, ROOT + "p1"]
+	assert stats.blocked == 1
+
+
+def test_disallowed_image_is_never_downloaded(site: FakeSite, tmp_path: Path):
+	site.robots[ROOT + "robots.txt"] = (200, b"User-agent: *\nDisallow: /b.jpg")
+	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=1)
+	assert ROOT + "b.jpg" not in site.images
+	assert stats.blocked == 1
+
+
+def test_robots_server_error_blocks_the_whole_site(site: FakeSite, tmp_path: Path):
+	site.robots[ROOT + "robots.txt"] = (503, b"")
+	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=3)
+	assert site.pages == []
+	assert stats.pages == 0 and stats.blocked == 1
+
+
+def test_redirect_to_disallowed_path_is_not_used(site: FakeSite, tmp_path: Path):
+	site.robots[ROOT + "robots.txt"] = (200, b"User-agent: *\nDisallow: /forbidden")
+	site.redirects[ROOT + "p2"] = ROOT + "forbidden"
+	stats = crawl(ROOT, tmp_path, recursive=True, max_depth=1)
+	assert ROOT + "c.jpg" not in site.images
+	assert stats.blocked == 1
